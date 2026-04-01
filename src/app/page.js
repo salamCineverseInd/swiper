@@ -4,7 +4,7 @@ import Image from "next/image";
 import Carousel from "./Carousel";
 
 export default function page() {
-    const data = Array.from({ length: 10 }, (_, i) => i + 10);
+    const data = Array.from({ length: 17 }, (_, i) => i + 1);
 
     return (
         <Carousel loop={true}>
@@ -36,7 +36,6 @@ export function CardComponent({ item }) {
                 position: "relative",
                 overflow: "hidden",
             }}
-            onClick={() => alert(item)}
         >
             {/* Decorative circle */}
             <div

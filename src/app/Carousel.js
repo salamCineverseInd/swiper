@@ -26,6 +26,9 @@ export default function Carousel({
     loop = true,
     gap = 16,
     peekSize = 25,
+    autoScroll = false,
+    autoScrollSpeed = 0.05,
+    scrollDirection = "right",
 }) {
     const data = React.Children.toArray(children);
     const currentPosRef = useRef(0);
@@ -54,6 +57,9 @@ export default function Carousel({
     const [visible, setVisible] = useState(5);
     const [cardWidth, setCardWidth] = useState(260);
     const canScroll = data.length > visible;
+
+    const autoScrollAccRef = useRef(0);
+    const autoScrollPausedRef = useRef(false);
 
     const STEP = cardWidth + gap;
 
@@ -94,7 +100,7 @@ export default function Carousel({
                 });
 
                 if (!isReady) setIsReady(true);
-            }, 300);
+            }, 100);
         });
 
         observer.observe(el);
@@ -174,6 +180,7 @@ export default function Carousel({
 
         trackRef.current.style.transition = "none";
         dragOffset.current = 0;
+        autoScrollPausedRef.current = true;
     }
 
     function onPointerMove(e) {
@@ -257,6 +264,7 @@ export default function Carousel({
         isDragging.current = false;
         e.currentTarget.releasePointerCapture(e.pointerId);
         snap(dragOffset.current);
+        autoScrollPausedRef.current = false;
     }
 
     useEffect(() => {
@@ -301,9 +309,66 @@ export default function Carousel({
         setTranslate(getOffset(indexRef.current), false);
     }, [visible]);
 
+    useEffect(() => {
+        if (!autoScroll || !isReady || !canScroll) return;
+
+        let lastTime = null;
+        let rafId;
+
+        function tick(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const delta = timestamp - lastTime;
+            lastTime = timestamp;
+
+            if (
+                !autoScrollPausedRef.current &&
+                !isDragging.current &&
+                trackRef.current
+            ) {
+                autoScrollAccRef.current += autoScrollSpeed * delta;
+                const px = Math.floor(autoScrollAccRef.current);
+
+                if (px >= 1) {
+                    autoScrollAccRef.current -= px;
+                    indexRef.current +=
+                        (scrollDirection === "left" ? -px : px) / STEP;
+
+                    if (indexRef.current >= data.length * 2)
+                        indexRef.current -= data.length;
+                    if (indexRef.current < data.length)
+                        indexRef.current += data.length;
+
+                    setTranslate(getOffset(indexRef.current), false);
+                }
+            }
+            rafId = requestAnimationFrame(tick);
+        }
+
+        rafId = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(rafId);
+    }, [
+        autoScroll,
+        autoScrollSpeed,
+        scrollDirection,
+        isReady,
+        canScroll,
+        STEP,
+        data.length,
+        getOffset,
+    ]);
+
     return (
         <Wrapper>
-            <CarouselArea ref={containerRef} $peekSize={peekSize}>
+            <CarouselArea
+                ref={containerRef}
+                $peekSize={peekSize}
+                onMouseEnter={() => {
+                    autoScrollPausedRef.current = true;
+                }}
+                onMouseLeave={() => {
+                    autoScrollPausedRef.current = false;
+                }}
+            >
                 <PeekOverlayLeft
                     $hidden={initialLoad || (!loop && atStart)}
                     $peekSize={peekSize}
@@ -337,9 +402,12 @@ export default function Carousel({
                     >
                         <Track ref={trackRef} $gap={gap}>
                             {items.map((item, i) => (
-                                <Card key={i} $width={cardWidth}>
+                                <div
+                                    key={i}
+                                    style={{ flex: `0 0 ${cardWidth}px` }}
+                                >
                                     {item}
-                                </Card>
+                                </div>
                             ))}
                         </Track>
                     </Viewport>
@@ -422,10 +490,6 @@ const Track = styled.div`
     display: flex;
     gap: ${({ $gap }) => `${$gap}px`};
     will-change: transform;
-`;
-
-const Card = styled.div`
-    flex: 0 0 ${({ $width }) => $width}px;
 `;
 
 const EdgeBase = styled.div`
