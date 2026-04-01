@@ -17,7 +17,7 @@ export default function Carousel({
     children,
     loop = true,
     gap = 16,
-    peekSize = 30,
+    peekSize = 20,
 }) {
     const data = React.Children.toArray(children);
     const currentPosRef = useRef(0);

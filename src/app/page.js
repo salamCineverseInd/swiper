@@ -7,7 +7,7 @@ export default function page() {
     const data = Array.from({ length: 10 }, (_, i) => i + 10);
 
     return (
-        <Carousel loop={true} gap={10} peekSize={40}>
+        <Carousel loop={true}>
             {data.map((item) => (
                 <CardComponent item={item} key={item} />
             ))}
