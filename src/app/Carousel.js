@@ -116,7 +116,9 @@ export default function Carousel({
     const slide = useCallback(
         (steps) => {
             if (!canScroll || isAnimating.current) return;
-            setInitialLoad(false);
+            if (steps !== 0) {
+                setInitialLoad(false);
+            }
 
             isAnimating.current = true;
             indexRef.current += steps;
@@ -162,8 +164,6 @@ export default function Carousel({
 
         pointerTypeRef.current = e.pointerType;
 
-        setInitialLoad(false);
-
         isDragging.current = true;
         startX.current = e.clientX;
         lastX.current = e.clientX;
@@ -179,6 +179,13 @@ export default function Carousel({
     function onPointerMove(e) {
         if (!isDragging.current) return;
         if (e.pointerType === "mouse") return;
+
+        const DRAG_THRESHOLD = 8;
+        const moveX = e.clientX - startX.current;
+
+        if (Math.abs(moveX) > DRAG_THRESHOLD && initialLoad) {
+            setInitialLoad(false);
+        }
 
         const now = Date.now();
         const dx = e.clientX - lastX.current;
