@@ -4,7 +4,7 @@ import Image from "next/image";
 import Carousel from "./Carousel";
 
 export default function page() {
-    const data = Array.from({ length: 7 }, (_, i) => i + 10);
+    const data = Array.from({ length: 10 }, (_, i) => i + 10);
 
     return (
         <Carousel loop={true}>

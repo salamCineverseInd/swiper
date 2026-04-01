@@ -475,9 +475,4 @@ const NavButton = styled.button`
     will-change: opacity, transform;
     transform: translateZ(0);
     -webkit-tap-highlight-color: transparent;
-
-    &:disabled {
-        opacity: 0.2;
-        cursor: not-allowed;
-    }
 `;
