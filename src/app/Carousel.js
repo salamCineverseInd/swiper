@@ -10,14 +10,22 @@ import React, {
 } from "react";
 import styled from "styled-components";
 
-const DURATION = 400;
+const DURATION = 500;
 const TRANSITION = `transform ${DURATION}ms cubic-bezier(.36,1.31,.64,1)`;
+
+function getVisibleCount(width) {
+    if (width < 480) return 2;
+    if (width < 768) return 3;
+    if (width < 1024) return 4;
+    if (width < 1280) return 5;
+    return 6;
+}
 
 export default function Carousel({
     children,
     loop = true,
     gap = 16,
-    peekSize = 20,
+    peekSize = 25,
 }) {
     const data = React.Children.toArray(children);
     const currentPosRef = useRef(0);
@@ -96,14 +104,6 @@ export default function Carousel({
             observer.disconnect();
         };
     }, [getOffset, isReady]);
-
-    function getVisibleCount(width) {
-        if (width < 480) return 2;
-        if (width < 768) return 3;
-        if (width < 1024) return 4;
-        if (width < 1280) return 5;
-        return 6;
-    }
 
     function setTranslate(px, withTransition) {
         const el = trackRef.current;
@@ -366,7 +366,7 @@ const PeekOverlayLeft = styled.div`
     position: absolute;
     top: 0;
     left: 0;
-    width: ${({ $peekSize }) => `${$peekSize * 2}px`};
+    width: ${({ $peekSize }) => `${$peekSize + 10}px`};
     height: 100%;
     background: linear-gradient(
         to right,
@@ -383,7 +383,7 @@ const PeekOverlayRight = styled.div`
     position: absolute;
     top: 0;
     right: 0;
-    width: ${({ $peekSize }) => `${$peekSize * 2}px`};
+    width: ${({ $peekSize }) => `${$peekSize + 10}px`};
     height: 100%;
     background: linear-gradient(
         to left,
