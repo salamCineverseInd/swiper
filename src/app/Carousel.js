@@ -167,7 +167,7 @@ export default function Carousel({
 
     function onPointerDown(e) {
         if (isAnimating.current) return;
-        if (e.pointerType === "mouse") return;
+        if (e.pointerType === "mouse" && window.innerWidth > 768) return;
 
         pointerTypeRef.current = e.pointerType;
 
@@ -186,7 +186,7 @@ export default function Carousel({
 
     function onPointerMove(e) {
         if (!isDragging.current) return;
-        if (e.pointerType === "mouse") return;
+        if (e.pointerType === "mouse" && window.innerWidth > 768) return;
 
         const DRAG_THRESHOLD = 8;
         const moveX = e.clientX - startX.current;
@@ -252,7 +252,7 @@ export default function Carousel({
                 steps = 0;
             }
         } else {
-            steps = Math.round(offset / STEP);
+            steps = -Math.round(offset / STEP);
         }
 
         slide(steps);
@@ -260,7 +260,7 @@ export default function Carousel({
 
     function onPointerUp(e) {
         if (!isDragging.current) return;
-        if (e.pointerType === "mouse") return;
+        if (e.pointerType === "mouse" && window.innerWidth > 768) return;
 
         isDragging.current = false;
         e.currentTarget.releasePointerCapture(e.pointerId);
