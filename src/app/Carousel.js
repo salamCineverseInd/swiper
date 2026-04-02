@@ -97,9 +97,10 @@ export default function Carousel({
 
                 requestAnimationFrame(() => {
                     setTranslate(getOffset(indexRef.current), false);
+                    requestAnimationFrame(() => {
+                        if (!isReady) setIsReady(true);
+                    });
                 });
-
-                if (!isReady) setIsReady(true);
             }, 100);
         });
 
@@ -391,27 +392,23 @@ export default function Carousel({
                     </EdgeLeft>
                 )}
 
-                {isReady && (
-                    <Viewport
-                        ref={viewportRef}
-                        onPointerDown={canScroll ? onPointerDown : undefined}
-                        onPointerMove={canScroll ? onPointerMove : undefined}
-                        onPointerUp={canScroll ? onPointerUp : undefined}
-                        onPointerLeave={canScroll ? onPointerUp : undefined}
-                        onPointerCancel={canScroll ? onPointerUp : undefined}
-                    >
-                        <Track ref={trackRef} $gap={gap}>
-                            {items.map((item, i) => (
-                                <div
-                                    key={i}
-                                    style={{ flex: `0 0 ${cardWidth}px` }}
-                                >
-                                    {item}
-                                </div>
-                            ))}
-                        </Track>
-                    </Viewport>
-                )}
+                <Viewport
+                    ref={viewportRef}
+                    onPointerDown={canScroll ? onPointerDown : undefined}
+                    onPointerMove={canScroll ? onPointerMove : undefined}
+                    onPointerUp={canScroll ? onPointerUp : undefined}
+                    onPointerLeave={canScroll ? onPointerUp : undefined}
+                    onPointerCancel={canScroll ? onPointerUp : undefined}
+                    style={{ visibility: isReady ? "visible" : "hidden" }}
+                >
+                    <Track ref={trackRef} $gap={gap}>
+                        {items.map((item, i) => (
+                            <div key={i} style={{ flex: `0 0 ${cardWidth}px` }}>
+                                {item}
+                            </div>
+                        ))}
+                    </Track>
+                </Viewport>
 
                 {canScroll && (loop || !atEnd) && (
                     <EdgeRight>
