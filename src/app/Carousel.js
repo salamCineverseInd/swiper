@@ -25,10 +25,11 @@ export default function Carousel({
     children,
     loop = true,
     gap = 16,
-    peekSize = 25,
+    peekSize = 20,
     autoScroll = false,
     autoScrollSpeed = 0.05,
     scrollDirection = "right",
+    background = "#000",
 }) {
     const data = React.Children.toArray(children);
     const currentPosRef = useRef(0);
@@ -359,7 +360,7 @@ export default function Carousel({
     ]);
 
     return (
-        <Wrapper>
+        <Wrapper $background={background}>
             <CarouselArea
                 ref={containerRef}
                 $peekSize={peekSize}
@@ -373,17 +374,19 @@ export default function Carousel({
                 <PeekOverlayLeft
                     $hidden={initialLoad || (!loop && atStart)}
                     $peekSize={peekSize}
+                    $background={background}
                 />
                 <PeekOverlayRight
                     $hidden={!loop && atEnd}
                     $peekSize={peekSize}
+                    $background={background}
                 />
 
                 {canScroll && (loop || !atStart) && (
                     <EdgeLeft>
                         <NavButton onClick={() => slide(getSteps(-1))}>
                             <Image
-                                src="/left-arrow.svg"
+                                src="/cineverse/left-arrow.svg"
                                 alt="left arrow"
                                 width={30}
                                 height={45}
@@ -414,7 +417,7 @@ export default function Carousel({
                     <EdgeRight>
                         <NavButton onClick={() => slide(getSteps(1))}>
                             <Image
-                                src="/right-arrow.svg"
+                                src="/cineverse/right-arrow.svg"
                                 alt="right arrow"
                                 width={30}
                                 height={45}
@@ -435,8 +438,8 @@ const PeekOverlayLeft = styled.div`
     height: 100%;
     background: linear-gradient(
         to right,
-        ${({ $hidden }) =>
-            $hidden ? `rgba(13, 13, 13, 1) 100%` : `rgba(0, 0, 0, 0.65) 40%`},
+        ${({ $hidden, $background }) =>
+            $hidden ? `${$background} 100%` : `rgba(0, 0, 0, 0.65) 40%`},
         transparent
     );
     z-index: 4;
@@ -452,8 +455,7 @@ const PeekOverlayRight = styled.div`
     height: 100%;
     background: linear-gradient(
         to left,
-        ${({ $hidden }) =>
-            $hidden ? `rgba(0, 0, 0, 0)` : `rgba(0, 0, 0, 0.65) 40%`},
+        ${({ $hidden }) => ($hidden ? $background : `rgba(0, 0, 0, 0.65) 40%`)},
         transparent
     );
     z-index: 4;
@@ -464,10 +466,9 @@ const PeekOverlayRight = styled.div`
 const Wrapper = styled.div`
     display: flex;
     align-items: center;
-    background: #0d0d0d;
-    min-height: 100vh;
+    background: ${({ $background }) => $background};
     width: 100%;
-    padding: 0;
+    padding: 2rem 0;
 `;
 
 const CarouselArea = styled.div`
