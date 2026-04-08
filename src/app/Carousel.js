@@ -386,7 +386,7 @@ export default function Carousel({
                     <EdgeLeft>
                         <NavButton onClick={() => slide(getSteps(-1))}>
                             <Image
-                                src="/cineverse/left-arrow.svg"
+                                src="/left-arrow.svg"
                                 alt="left arrow"
                                 width={30}
                                 height={45}
@@ -417,7 +417,7 @@ export default function Carousel({
                     <EdgeRight>
                         <NavButton onClick={() => slide(getSteps(1))}>
                             <Image
-                                src="/cineverse/right-arrow.svg"
+                                src="/right-arrow.svg"
                                 alt="right arrow"
                                 width={30}
                                 height={45}
@@ -469,6 +469,7 @@ const Wrapper = styled.div`
     background: ${({ $background }) => $background};
     width: 100%;
     padding: 2rem 0;
+    min-height: 100vh;
 `;
 
 const CarouselArea = styled.div`
