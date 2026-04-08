@@ -69,8 +69,11 @@ export default function Carousel({
     }, [data, canScroll, loop]);
 
     const getOffset = useCallback(
-        (index) => -(index * STEP) + peekSize,
-        [STEP],
+        (index) => {
+            if (!canScroll) return peekSize;
+            return -(index * STEP) + peekSize;
+        },
+        [STEP, canScroll, peekSize],
     );
 
     useEffect(() => {
@@ -442,6 +445,7 @@ const PeekOverlayLeft = styled.div`
             $hidden ? `${$background} 100%` : `rgba(0, 0, 0, 0.65) 40%`},
         transparent
     );
+    background-color: red;
     z-index: 4;
     pointer-events: none;
     transition: background 300ms ease;
@@ -469,7 +473,6 @@ const Wrapper = styled.div`
     background: ${({ $background }) => $background};
     width: 100%;
     padding: 2rem 0;
-    min-height: 100vh;
 `;
 
 const CarouselArea = styled.div`
