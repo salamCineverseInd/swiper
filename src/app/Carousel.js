@@ -1,544 +1,308 @@
 "use client";
 
-import Image from "next/image";
-import React, {
-    useRef,
-    useEffect,
-    useState,
-    useMemo,
-    useCallback,
-} from "react";
 import styled from "styled-components";
+import React, { useRef, useEffect, useCallback, useMemo } from "react";
+import Image from "next/image";
 
-const DURATION = 500;
-const TRANSITION = `transform ${DURATION}ms cubic-bezier(.36,1.31,.64,1)`;
+const DURATION = 300;
+const TRANSITION = `transform ${DURATION}ms ease-in-out`;
+const BREAKPOINT = 640;
+const ARROW_WIDTH = 80;
+const ITEMS = [
+    "Romance",
+    "Sci-Fi & Fantasy",
+    "True Crime",
+    "Mystery",
+    "Biography",
+    "History",
+];
 
-function getVisibleCount(width) {
-    if (width < 480) return 2;
-    if (width < 768) return 3;
-    if (width < 1024) return 4;
-    if (width < 1280) return 5;
-    return 6;
-}
+export default function TextCarousel({ items = ITEMS, loading = 0 }) {
+    const n = items.length;
+    const tripled = useMemo(() => [...items, ...items, ...items], [items]);
 
-export default function Carousel({
-    children,
-    loop = true,
-    gap = 16,
-    peekSize = 20,
-    autoScroll = false,
-    autoScrollSpeed = 0.05,
-    scrollDirection = "right",
-    background = "#000",
-}) {
-    const data = React.Children.toArray(children);
-    const currentPosRef = useRef(0);
-    const [atStart, setAtStart] = useState(false);
-    const [atEnd, setAtEnd] = useState(false);
-
-    const containerRef = useRef(null);
-    const trackRef = useRef(null);
-    const pointerTypeRef = useRef("mouse");
-
-    const viewportRef = useRef(null);
-    const indexRef = useRef(loop ? data.length : 0);
+    const tracksRef = useRef({ left: null, center: null, right: null });
+    const slotWidthRef = useRef(0);
+    const indexRef = useRef(n);
     const isAnimating = useRef(false);
 
-    const [initialLoad, setInitialLoad] = useState(true);
-
-    const startX = useRef(0);
-    const isDragging = useRef(false);
-    const dragOffset = useRef(0);
-
-    const velocityRef = useRef(0);
-    const lastMoveTime = useRef(0);
-    const lastX = useRef(0);
-
-    const [isReady, setIsReady] = useState(false);
-    const [visible, setVisible] = useState(5);
-    const [cardWidth, setCardWidth] = useState(260);
-    const canScroll = data.length > visible;
-
-    const autoScrollAccRef = useRef(0);
-    const autoScrollPausedRef = useRef(false);
-
-    const STEP = cardWidth + gap;
-
-    const items = useMemo(() => {
-        return canScroll && loop ? [...data, ...data, ...data] : data;
-    }, [data, canScroll, loop]);
+    const wrapperRef = useRef(null);
+    const outerLeftRef = useRef(null);
+    const outerRightRef = useRef(null);
 
     const getOffset = useCallback(
-        (index) => {
-            if (!canScroll) return peekSize;
-            return -(index * STEP) + peekSize;
-        },
-        [STEP, canScroll, peekSize],
+        (index) => -(index * slotWidthRef.current),
+        [],
     );
 
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
+    const setTranslate = useCallback((track, px, withTransition) => {
+        if (!track) return;
+        track.style.transition = withTransition ? TRANSITION : "none";
+        track.style.transform = `translate3d(${px}px,0,0.001px)`;
+    }, []);
 
-        let timeoutId = null;
+    const updateAll = useCallback(
+        (withTransition) => {
+            const { left, center, right } = tracksRef.current;
+            setTranslate(left, getOffset(indexRef.current - 1), withTransition);
+            setTranslate(center, getOffset(indexRef.current), withTransition);
+            setTranslate(
+                right,
+                getOffset(indexRef.current + 1),
+                withTransition,
+            );
+        },
+        [getOffset, setTranslate],
+    );
 
-        const observer = new ResizeObserver(([entry]) => {
-            const width = entry.contentRect.width;
-
-            if (timeoutId) clearTimeout(timeoutId);
-
-            timeoutId = setTimeout(() => {
-                const v = getVisibleCount(width);
-                const totalGap = (v - 1) * gap;
-                const cardW = (width - totalGap - peekSize * 2) / v;
-
-                if (trackRef.current) {
-                    trackRef.current.style.transition = "none";
-                }
-
-                setVisible(v);
-                setCardWidth(cardW);
-
-                requestAnimationFrame(() => {
-                    setTranslate(getOffset(indexRef.current), false);
-                    requestAnimationFrame(() => {
-                        if (!isReady) setIsReady(true);
-                    });
-                });
-            }, 100);
+    const updateActive = useCallback(() => {
+        Object.values(tracksRef.current).forEach((track) => {
+            if (!track) return;
+            track.querySelectorAll("[data-item]").forEach((el, i) => {
+                el.setAttribute(
+                    "data-active",
+                    i % n === indexRef.current % n ? "true" : "false",
+                );
+            });
         });
-
-        observer.observe(el);
-
-        return () => {
-            if (timeoutId) clearTimeout(timeoutId);
-            observer.disconnect();
-        };
-    }, [getOffset, isReady]);
-
-    function setTranslate(px, withTransition) {
-        const el = trackRef.current;
-        if (!el) return;
-
-        el.style.transition = withTransition ? TRANSITION : "none";
-        el.style.transform = `translate3d(${px}px,0,0)`;
-    }
+    }, [n]);
 
     const slide = useCallback(
-        (steps) => {
-            if (!canScroll || isAnimating.current) return;
-            if (steps !== 0) {
-                setInitialLoad(false);
-            }
-
+        (dir) => {
+            if (isAnimating.current) return;
             isAnimating.current = true;
-            indexRef.current += steps;
-
-            if (!loop) {
-                indexRef.current = Math.max(
-                    0,
-                    Math.min(indexRef.current, data.length - 1),
-                );
-            }
-
-            const pos =
-                ((indexRef.current % data.length) + data.length) % data.length;
-            currentPosRef.current = pos;
-
-            if (!loop) {
-                setAtStart(pos === 0);
-                setAtEnd(pos >= data.length - visible);
-            }
-
-            setTranslate(getOffset(indexRef.current), true);
-
-            setTimeout(() => {
-                if (loop) {
-                    const total = data.length;
-                    if (indexRef.current >= total * 2) {
-                        indexRef.current -= total;
-                        setTranslate(getOffset(indexRef.current), false);
-                    } else if (indexRef.current < total) {
-                        indexRef.current += total;
-                        setTranslate(getOffset(indexRef.current), false);
-                    }
-                }
-                isAnimating.current = false;
-            }, DURATION);
+            indexRef.current += dir;
+            updateAll(true);
+            updateActive();
         },
-        [getOffset, loop, data.length, visible],
-    );
-
-    function onPointerDown(e) {
-        if (isAnimating.current) return;
-        if (e.pointerType === "mouse" && window.innerWidth > 768) return;
-
-        pointerTypeRef.current = e.pointerType;
-
-        isDragging.current = true;
-        startX.current = e.clientX;
-        lastX.current = e.clientX;
-        lastMoveTime.current = Date.now();
-        velocityRef.current = 0;
-
-        e.currentTarget.setPointerCapture(e.pointerId);
-
-        trackRef.current.style.transition = "none";
-        dragOffset.current = 0;
-        autoScrollPausedRef.current = true;
-    }
-
-    function onPointerMove(e) {
-        if (!isDragging.current) return;
-        if (e.pointerType === "mouse" && window.innerWidth > 768) return;
-
-        const DRAG_THRESHOLD = 8;
-        const moveX = e.clientX - startX.current;
-
-        if (Math.abs(moveX) > DRAG_THRESHOLD && initialLoad) {
-            setInitialLoad(false);
-        }
-
-        const now = Date.now();
-        const dx = e.clientX - lastX.current;
-        const dt = now - lastMoveTime.current;
-
-        velocityRef.current = dt > 0 ? dx / dt : 0;
-
-        lastX.current = e.clientX;
-        lastMoveTime.current = now;
-
-        dragOffset.current = e.clientX - startX.current;
-
-        let clampedOffset = dragOffset.current;
-        if (!loop) {
-            const pos =
-                ((indexRef.current % data.length) + data.length) % data.length;
-            const atStartBoundary = pos === 0;
-            const atEndBoundary = pos >= data.length - visible;
-            if (atStartBoundary && clampedOffset > 0) clampedOffset = 0;
-            if (atEndBoundary && clampedOffset < 0) clampedOffset = 0;
-        }
-
-        setTranslate(getOffset(indexRef.current) + clampedOffset, false);
-    }
-
-    function snap(offset) {
-        const pos =
-            ((indexRef.current % data.length) + data.length) % data.length;
-
-        const isTouch = pointerTypeRef.current === "touch";
-
-        let steps = 0;
-
-        if (isTouch) {
-            const MIN_SWIPE = STEP * 0.2;
-
-            const isForward = velocityRef.current < -0.2 || offset < -MIN_SWIPE;
-
-            const isBackward = velocityRef.current > 0.2 || offset > MIN_SWIPE;
-
-            if (isForward) {
-                if (!loop && pos >= data.length - visible) {
-                    steps = 0;
-                } else {
-                    const remaining = data.length - visible - pos;
-                    steps =
-                        remaining <= 0 ? visible : Math.min(visible, remaining);
-                }
-            } else if (isBackward) {
-                if (!loop && pos === 0) {
-                    steps = 0;
-                } else {
-                    steps = pos === 0 ? -visible : -Math.min(visible, pos);
-                }
-            } else {
-                steps = 0;
-            }
-        } else {
-            steps = -Math.round(offset / STEP);
-        }
-
-        slide(steps);
-    }
-
-    function onPointerUp(e) {
-        if (!isDragging.current) return;
-        if (e.pointerType === "mouse" && window.innerWidth > 768) return;
-
-        isDragging.current = false;
-        e.currentTarget.releasePointerCapture(e.pointerId);
-        snap(dragOffset.current);
-        autoScrollPausedRef.current = false;
-    }
-
-    useEffect(() => {
-        setTranslate(getOffset(indexRef.current), false);
-    }, [STEP]);
-
-    useEffect(() => {
-        if (!canScroll) {
-            indexRef.current = 0;
-            setTranslate(0, false);
-        }
-    }, [canScroll]);
-
-    const getSteps = useCallback(
-        (direction) => {
-            const pos =
-                ((indexRef.current % data.length) + data.length) % data.length;
-
-            if (direction > 0) {
-                const remaining = data.length - visible - pos;
-                if (remaining <= 0) return visible;
-                return Math.min(visible, remaining);
-            } else {
-                if (pos === 0) return -visible;
-                return -Math.min(visible, pos);
-            }
-        },
-        [data.length, visible],
+        [updateAll, updateActive],
     );
 
     useEffect(() => {
-        if (!isReady) return;
+        const center = tracksRef.current.center;
+        if (!center) return;
 
-        const currentPos = currentPosRef.current;
-        indexRef.current = loop ? data.length + currentPos : currentPos;
+        const handleEnd = (e) => {
+            if (e.propertyName !== "transform") return;
 
-        if (trackRef.current) {
-            trackRef.current.style.transition = "none";
-        }
-        setAtStart(!loop && currentPos === 0);
-        setAtEnd(!loop && currentPos >= data.length - visible);
-        setTranslate(getOffset(indexRef.current), false);
-    }, [visible]);
+            if (indexRef.current >= n * 2) {
+                indexRef.current -= n;
+            } else if (indexRef.current < n) {
+                indexRef.current += n;
+            }
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    updateAll(false);
+                    updateActive();
+                    isAnimating.current = false;
+                });
+            });
+        };
+
+        center.addEventListener("transitionend", handleEnd);
+        return () => center.removeEventListener("transitionend", handleEnd);
+    }, [n, updateAll, updateActive]);
+
+    const build = useCallback(() => {
+        const containerWidth = wrapperRef.current?.clientWidth ?? 0;
+        if (containerWidth === 0) return;
+
+        const isSmall = containerWidth < BREAKPOINT;
+        const slotW = isSmall
+            ? containerWidth
+            : (containerWidth - ARROW_WIDTH) / 3;
+
+        if (Math.abs(slotW - slotWidthRef.current) < 1) return;
+
+        slotWidthRef.current = slotW;
+
+        // Note: The manual JS inline styling for outerLeft/outerRight has been removed from here.
+
+        Object.values(tracksRef.current).forEach((track) => {
+            if (!track) return;
+            track.innerHTML = "";
+            tripled.forEach((text) => {
+                const el = document.createElement("div");
+                el.className = "carousel-item";
+                el.setAttribute("data-item", "true");
+                el.setAttribute("data-active", "false");
+                el.style.width = `${slotW}px`;
+
+                if (loading) {
+                    const skeleton = document.createElement("div");
+                    skeleton.className = "carousel-skeleton";
+                    el.appendChild(skeleton);
+                } else {
+                    el.textContent = text;
+                }
+
+                track.appendChild(el);
+            });
+        });
+
+        updateAll(false);
+        updateActive();
+    }, [tripled, updateAll, updateActive, loading]);
 
     useEffect(() => {
-        if (!autoScroll || !isReady || !canScroll) return;
-
-        let lastTime = null;
-        let rafId;
-
-        function tick(timestamp) {
-            if (!lastTime) lastTime = timestamp;
-            const delta = timestamp - lastTime;
-            lastTime = timestamp;
-
-            if (
-                !autoScrollPausedRef.current &&
-                !isDragging.current &&
-                trackRef.current
-            ) {
-                autoScrollAccRef.current += autoScrollSpeed * delta;
-                const px = Math.floor(autoScrollAccRef.current);
-
-                if (px >= 1) {
-                    autoScrollAccRef.current -= px;
-                    indexRef.current +=
-                        (scrollDirection === "left" ? -px : px) / STEP;
-
-                    if (indexRef.current >= data.length * 2)
-                        indexRef.current -= data.length;
-                    if (indexRef.current < data.length)
-                        indexRef.current += data.length;
-
-                    setTranslate(getOffset(indexRef.current), false);
-                }
-            }
-            rafId = requestAnimationFrame(tick);
-        }
-
-        rafId = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(rafId);
-    }, [
-        autoScroll,
-        autoScrollSpeed,
-        scrollDirection,
-        isReady,
-        canScroll,
-        STEP,
-        data.length,
-        getOffset,
-    ]);
+        const observer = new ResizeObserver(build);
+        if (wrapperRef.current) observer.observe(wrapperRef.current);
+        return () => observer.disconnect();
+    }, [build]);
 
     return (
-        <Wrapper $background={background}>
-            <CarouselArea
-                ref={containerRef}
-                $peekSize={peekSize}
-                onMouseEnter={() => {
-                    autoScrollPausedRef.current = true;
-                }}
-                onMouseLeave={() => {
-                    autoScrollPausedRef.current = false;
-                }}
-            >
-                <PeekOverlayLeft
-                    $hidden={initialLoad || (!loop && atStart)}
-                    $peekSize={peekSize}
-                    $background={background}
+        <Wrapper ref={wrapperRef}>
+            <SideOuter ref={outerLeftRef}>
+                <Track ref={(el) => (tracksRef.current.left = el)} />
+            </SideOuter>
+
+            <ArrowButton onClick={() => slide(-1)} aria-label="Previous">
+                <Image
+                    src="/arrowPrev.svg"
+                    alt="prev button"
+                    width={30}
+                    height={30}
                 />
-                <PeekOverlayRight
-                    $hidden={!loop && atEnd}
-                    $peekSize={peekSize}
-                    $background={background}
+            </ArrowButton>
+
+            <Outer style={{ flex: 1 }}>
+                <Track ref={(el) => (tracksRef.current.center = el)} />
+            </Outer>
+
+            <ArrowButton onClick={() => slide(1)} aria-label="Next">
+                <Image
+                    src="/arrowNext.svg"
+                    alt="next button"
+                    width={30}
+                    height={30}
                 />
+            </ArrowButton>
 
-                {canScroll && (loop || !atStart) && (
-                    <EdgeLeft>
-                        <NavButton onClick={() => slide(getSteps(-1))}>
-                            <Image
-                                src="/left-arrow.svg"
-                                alt="left arrow"
-                                width={30}
-                                height={45}
-                            />
-                        </NavButton>
-                    </EdgeLeft>
-                )}
+            <SideOuter ref={outerRightRef}>
+                <Track ref={(el) => (tracksRef.current.right = el)} />
+            </SideOuter>
 
-                <Viewport
-                    ref={viewportRef}
-                    onPointerDown={canScroll ? onPointerDown : undefined}
-                    onPointerMove={canScroll ? onPointerMove : undefined}
-                    onPointerUp={canScroll ? onPointerUp : undefined}
-                    onPointerLeave={canScroll ? onPointerUp : undefined}
-                    onPointerCancel={canScroll ? onPointerUp : undefined}
-                    style={{ visibility: isReady ? "visible" : "hidden" }}
-                >
-                    <Track ref={trackRef} $gap={gap}>
-                        {items.map((item, i) => (
-                            <div key={i} style={{ flex: `0 0 ${cardWidth}px` }}>
-                                {item}
-                            </div>
-                        ))}
-                    </Track>
-                </Viewport>
-
-                {canScroll && (loop || !atEnd) && (
-                    <EdgeRight>
-                        <NavButton onClick={() => slide(getSteps(1))}>
-                            <Image
-                                src="/right-arrow.svg"
-                                alt="right arrow"
-                                width={30}
-                                height={45}
-                            />
-                        </NavButton>
-                    </EdgeRight>
-                )}
-            </CarouselArea>
+            <GlobalStyle />
         </Wrapper>
     );
 }
 
-const PeekOverlayLeft = styled.div`
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: ${({ $peekSize }) => `${$peekSize + 10}px`};
-    height: 100%;
-    background: linear-gradient(
-        to right,
-        ${({ $hidden, $background }) =>
-            $hidden ? `${$background} 100%` : `rgba(0, 0, 0, 0.65) 40%`},
-        transparent
-    );
-    background-color: red;
-    z-index: 4;
-    pointer-events: none;
-    transition: background 300ms ease;
-`;
+const GlobalStyle = () => (
+    <style>{`
+        @keyframes shimmer {
+            0% { background-position: -400px 0; }
+            100% { background-position: 400px 0; }
+        }
 
-const PeekOverlayRight = styled.div`
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: ${({ $peekSize }) => `${$peekSize + 10}px`};
-    height: 100%;
-    background: linear-gradient(
-        to left,
-        ${({ $hidden }) => ($hidden ? $background : `rgba(0, 0, 0, 0.65) 40%`)},
-        transparent
-    );
-    z-index: 4;
-    pointer-events: none;
-    transition: background 300ms ease;
-`;
+        .carousel-item {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            font-family: 'Open Sans', sans-serif;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            line-height: 1.4;
+            white-space: normal;
+            overflow: visible;
+            word-break: break-word;
+            box-sizing: border-box;
+            padding: 4px 16px;
+            transition: color 500ms ease;
+            will-change: transform;
+        }
+        .carousel-item[data-active="true"] {
+            color: rgba(255,255,255,1);
+        }
+
+        .carousel-skeleton {
+            width: 60%;
+            height: 25px;
+            border-radius: 6px;
+            background: linear-gradient(
+                90deg,
+                rgba(255,255,255,0.08) 25%,
+                rgba(255,255,255,0.18) 50%,
+                rgba(255,255,255,0.08) 75%
+            );
+            background-size: 400px 100%;
+            animation: shimmer 1.4s infinite linear;
+            margin-inline: auto;
+        }
+    `}</style>
+);
 
 const Wrapper = styled.div`
     display: flex;
     align-items: center;
-    background: ${({ $background }) => $background};
+    justify-content: center;
     width: 100%;
-    padding: 2rem 0;
+    padding: 2rem;
+    box-sizing: border-box;
+    min-height: 100vh;
+    background-color: #000;
+    position: relative;
+
+    @media (max-width: 639px) {
+        padding: 2rem 0;
+    }
 `;
 
-const CarouselArea = styled.div`
-    position: relative;
+const Outer = styled.div`
     flex: 1;
     overflow: hidden;
-    padding: ${({ $peekSize }) => `0 ${$peekSize}px`};
+    position: relative;
+    display: flex;
+    align-items: center;
 `;
 
-const Viewport = styled.div`
-    width: 100%;
-    overflow: visible;
-    touch-action: pan-y;
+const SideOuter = styled(Outer)`
+    @media (max-width: 639px) {
+        flex: 0 0 0px;
+        width: 0px;
+    }
 `;
 
 const Track = styled.div`
     display: flex;
-    gap: ${({ $gap }) => `${$gap}px`};
-    will-change: transform;
-`;
-
-const EdgeBase = styled.div`
-    position: absolute;
-    top: 0;
-    height: 100%;
-    width: 80px;
-    display: flex;
     align-items: center;
-    z-index: 5;
-    opacity: 0;
-    transition: opacity 200ms ease;
-    will-change: opacity;
-
-    &:hover {
-        opacity: 1;
-    }
-
-    @media (max-width: 768px) {
-        display: none;
-    }
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
 `;
 
-const EdgeLeft = styled(EdgeBase)`
-    left: 0;
-    justify-content: flex-start;
-    padding-left: 8px;
-    background: linear-gradient(to right, rgba(0, 0, 0, 0.5), transparent);
-`;
-
-const EdgeRight = styled(EdgeBase)`
-    right: 0;
-    justify-content: flex-end;
-    padding-right: 8px;
-    background: linear-gradient(to left, rgba(0, 0, 0, 0.5), transparent);
-`;
-
-const NavButton = styled.button`
+const ArrowButton = styled.button`
     all: unset;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    will-change: opacity, transform;
-    transform: translateZ(0);
-    -webkit-tap-highlight-color: transparent;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    z-index: 2;
+    transition: opacity 150ms;
+
+    @media (max-width: 639px) {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+
+        &:first-of-type {
+            left: 1rem;
+        }
+        &:last-of-type {
+            right: 1rem;
+        }
+
+        &:active {
+            transform: translateY(-50%) scale(0.92);
+        }
+    }
+
+    &:hover {
+        opacity: 0.6;
+    }
 `;

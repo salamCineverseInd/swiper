@@ -1,48 +1,27 @@
 "use client";
 
-import Carousel from "./Carousel";
-import { CarouselImage } from "./CarouselImage";
 import styled from "styled-components";
-import { items } from "./items";
-import ShelfCard from "./ShelfCard";
+import dynamic from "next/dynamic";
+const Carousel = dynamic(() => import("./Carousel"));
+
+const items = [
+    "Romance",
+    "Sci-Fi & Fantasy",
+    "True Crime",
+    "Mystery",
+    "Biography",
+    "History",
+    "Self-Help",
+    "Horror",
+    "Thriller",
+];
 
 export default function page() {
     return (
         <div>
             <Carousel>
-                {items.slice(0, 3).map((item) => (
-                    <ShelfCard key={item.id} item={item}>
-                        <CarouselImageContainer>
-                            <CarouselImage
-                                src={item.promo_thumbnail_port}
-                                alt={`${item.title} poster`}
-                            />
-                        </CarouselImageContainer>
-                    </ShelfCard>
-                ))}
-            </Carousel>
-            <Carousel>
                 {items.map((item) => (
-                    <ShelfCard key={item.id} item={item}>
-                        <CarouselImageContainer>
-                            <CarouselImage
-                                src={item.promo_thumbnail_port}
-                                alt={`${item.title} poster`}
-                            />
-                        </CarouselImageContainer>
-                    </ShelfCard>
-                ))}
-            </Carousel>
-            <Carousel>
-                {items.slice(3, 4).map((item) => (
-                    <ShelfCard key={item.id} item={item}>
-                        <CarouselImageContainer>
-                            <CarouselImage
-                                src={item.promo_thumbnail_port}
-                                alt={`${item.title} poster`}
-                            />
-                        </CarouselImageContainer>
-                    </ShelfCard>
+                    <h1 key={item}>{item}</h1>
                 ))}
             </Carousel>
         </div>
